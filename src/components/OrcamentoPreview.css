@@ -93,6 +93,7 @@
   max-height: 60px;
   max-width: 150px;
   object-fit: contain;
+  border-radius: 50%;
 }
 
 .empresa-nome {
