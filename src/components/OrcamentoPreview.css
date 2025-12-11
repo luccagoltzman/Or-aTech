@@ -1,0 +1,644 @@
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.preview-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-voltar {
+  background: var(--secondary-color);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.btn-voltar:hover {
+  background: #475569;
+  transform: translateY(-1px);
+}
+
+.btn-action {
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+}
+
+.btn-action:hover {
+  background: var(--background);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.btn-action.btn-primary {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.btn-action.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.orcamento-preview {
+  background: var(--surface);
+  padding: 3rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  max-width: 210mm;
+  margin: 0 auto;
+  min-height: 297mm;
+}
+
+.orcamento-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 3px solid var(--primary-color);
+}
+
+.header-left {
+  flex: 1;
+}
+
+.logo-container {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.empresa-logo {
+  max-height: 60px;
+  max-width: 150px;
+  object-fit: contain;
+}
+
+.empresa-nome {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.empresa-tagline {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.header-right {
+  text-align: right;
+}
+
+.documento-titulo {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.documento-numero {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.orcamento-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.info-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+.info-section p {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.info-section strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.orcamento-itens {
+  margin-bottom: 2rem;
+}
+
+.orcamento-itens table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.orcamento-itens thead {
+  background: var(--primary-color);
+  color: white;
+}
+
+.orcamento-itens th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.orcamento-itens th.text-center {
+  text-align: center;
+}
+
+.orcamento-itens th.text-right {
+  text-align: right;
+}
+
+.orcamento-itens tbody tr {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.orcamento-itens tbody tr:hover {
+  background: var(--background);
+}
+
+.orcamento-itens td {
+  padding: 1rem;
+  font-size: 0.95rem;
+}
+
+.orcamento-itens td.text-center {
+  text-align: center;
+}
+
+.orcamento-itens td.text-right {
+  text-align: right;
+  font-weight: 500;
+}
+
+.orcamento-totais {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  margin-left: auto;
+  min-width: 300px;
+}
+
+.orcamento-totais .total-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
+.orcamento-totais .total-row.final {
+  background: var(--primary-color);
+  color: white;
+  border-radius: 6px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+.orcamento-observacoes {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--background);
+  border-radius: 6px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.orcamento-observacoes h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.orcamento-observacoes p {
+  line-height: 1.8;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.orcamento-footer {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--border-color);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.footer-empresa {
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.footer-contact {
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.documento-data {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Estilos para orçamento técnico */
+.orcamento-preview.technical {
+  line-height: 1.8;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 2rem 0 1.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.projeto-section {
+  margin-bottom: 2rem;
+}
+
+.projeto-titulo {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 1rem 0;
+}
+
+.projeto-content {
+  margin: 1.5rem 0;
+}
+
+.projeto-content h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.text-content {
+  line-height: 1.8;
+  color: var(--text-secondary);
+  text-align: justify;
+  margin-bottom: 1rem;
+}
+
+.desenvolvimento-section {
+  margin-bottom: 2rem;
+}
+
+.categoria-group {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: var(--background);
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.categoria-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+}
+
+.item-technical {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.item-technical:last-child {
+  border-bottom: none;
+}
+
+.item-header-technical {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.item-header-technical h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 200px;
+}
+
+.item-metrics-badge {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.item-metrics-badge .metric {
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.item-metrics-badge .metric.total {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.item-detalhes {
+  margin-top: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.item-detalhes p {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  text-align: justify;
+}
+
+.custos-section {
+  margin-bottom: 2rem;
+}
+
+.custos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.custo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--background);
+  border-radius: 6px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.custo-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custo-info strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.custo-periodicidade {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.custo-valor {
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 1.05rem;
+}
+
+.receita-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--background);
+  border-radius: 8px;
+  border-left: 4px solid var(--success-color);
+}
+
+.resumo-section {
+  margin-bottom: 2rem;
+}
+
+.resumo-table {
+  margin-top: 1rem;
+}
+
+.resumo-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.resumo-table thead {
+  background: var(--primary-color);
+  color: white;
+}
+
+.resumo-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.resumo-table th.text-center {
+  text-align: center;
+}
+
+.resumo-table th.text-right {
+  text-align: right;
+}
+
+.resumo-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.resumo-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.resumo-table tbody tr:hover {
+  background: var(--background);
+}
+
+.resumo-table td {
+  padding: 1rem;
+  font-size: 0.95rem;
+  vertical-align: top;
+}
+
+.resumo-table td:first-child {
+  min-width: 120px;
+}
+
+.resumo-table td:nth-child(2) {
+  min-width: 100px;
+  text-align: center;
+}
+
+.resumo-table td:last-child {
+  min-width: 200px;
+}
+
+.resumo-table td.text-center {
+  text-align: center;
+}
+
+.resumo-table td.text-right {
+  text-align: right;
+  font-weight: 500;
+}
+
+.resumo-total-row {
+  background: var(--primary-color);
+  color: white;
+  font-weight: 600;
+}
+
+.resumo-total-row td {
+  padding: 1.25rem 1rem;
+  font-size: 1.05rem;
+}
+
+.resumo-total-row strong {
+  color: white;
+}
+
+.total-horas-final {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.orcamento-termos {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--background);
+  border-radius: 6px;
+  border-left: 4px solid var(--secondary-color);
+}
+
+.orcamento-termos h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+@media print {
+  .preview-actions {
+    display: none;
+  }
+
+  .orcamento-preview {
+    box-shadow: none;
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .empresa-logo {
+    max-height: 50px;
+    max-width: 120px;
+  }
+
+  body {
+    background: white;
+  }
+}
+
+@media (max-width: 768px) {
+  .orcamento-preview {
+    padding: 1.5rem;
+  }
+
+  .orcamento-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .logo-container {
+    justify-content: center;
+  }
+
+  .empresa-logo {
+    max-height: 50px;
+    max-width: 120px;
+  }
+
+  .header-right {
+    text-align: left;
+  }
+
+  .orcamento-info {
+    grid-template-columns: 1fr;
+  }
+
+  .orcamento-itens {
+    overflow-x: auto;
+  }
+
+  .orcamento-itens table {
+    min-width: 600px;
+  }
+
+  .orcamento-totais {
+    min-width: 100%;
+  }
+
+  .preview-actions {
+    flex-direction: column;
+  }
+
+  .action-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .btn-action {
+    width: 100%;
+  }
+}
+
