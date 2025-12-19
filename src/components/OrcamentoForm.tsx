@@ -4,6 +4,7 @@ import './OrcamentoForm.css'
 
 interface OrcamentoFormProps {
   onGerarOrcamento: (orcamento: Orcamento) => void
+  orcamentoParaEditar?: Orcamento | null
 }
 
 const CATEGORIAS_BACKEND = [
@@ -29,7 +30,7 @@ const CATEGORIAS_FRONTEND = [
   'Outros Frontend'
 ]
 
-function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
+function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormProps) {
   const [numero, setNumero] = useState('')
   const [data, setData] = useState(new Date().toISOString().split('T')[0])
   const [validade, setValidade] = useState('30')
@@ -274,9 +275,220 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
     onGerarOrcamento(novoOrcamento)
   }
 
+  // Carrega dados do orçamento para edição
+  useEffect(() => {
+    if (orcamentoParaEditar) {
+      setNumero(orcamentoParaEditar.numero)
+      setData(orcamentoParaEditar.data)
+      setValidade(orcamentoParaEditar.validade)
+      setTipoOrcamento(orcamentoParaEditar.tipo)
+      setPrazoEntrega(orcamentoParaEditar.prazoEntrega || '')
+      setCliente(orcamentoParaEditar.cliente)
+      setProjeto(orcamentoParaEditar.projeto)
+      setCustosOperacionais(orcamentoParaEditar.custosOperacionais.length > 0 ? orcamentoParaEditar.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
+      setModeloReceita(orcamentoParaEditar.modeloReceita || '')
+      setObservacoes(orcamentoParaEditar.observacoes)
+      setTermosCondicoes(orcamentoParaEditar.termosCondicoes)
+      setDesconto(orcamentoParaEditar.desconto)
+      
+      // Separa itens em backend e frontend
+      const categoriasBackend = [
+        'API REST', 'Banco de Dados', 'Integração de Pagamento',
+        'Autenticação/Autorização', 'Processamento de Dados',
+        'Infraestrutura/DevOps', 'Testes Backend', 'Documentação API', 'Outros Backend'
+      ]
+      
+      const backendItems = orcamentoParaEditar.itens.filter(item => categoriasBackend.includes(item.categoria))
+      const frontendItems = orcamentoParaEditar.itens.filter(item => !categoriasBackend.includes(item.categoria))
+      
+      setItensBackend(backendItems.length > 0 ? backendItems : [])
+      setItensFrontend(frontendItems.length > 0 ? frontendItems : [])
+    }
+  }, [orcamentoParaEditar])
+
+  const handleImportarJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const jsonContent = e.target?.result as string
+        const orcamentoImportado = JSON.parse(jsonContent) as Orcamento
+        
+        // Valida se é um orçamento válido
+        if (!orcamentoImportado.numero || !orcamentoImportado.data || !orcamentoImportado.itens) {
+          alert('Arquivo JSON inválido. Certifique-se de que é um orçamento exportado desta plataforma.')
+          return
+        }
+
+        // Carrega os dados no formulário
+        setNumero(orcamentoImportado.numero)
+        setData(orcamentoImportado.data)
+        setValidade(orcamentoImportado.validade)
+        setTipoOrcamento(orcamentoImportado.tipo)
+        setPrazoEntrega(orcamentoImportado.prazoEntrega || '')
+        setCliente(orcamentoImportado.cliente)
+        setProjeto(orcamentoImportado.projeto)
+        setCustosOperacionais(orcamentoImportado.custosOperacionais.length > 0 ? orcamentoImportado.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
+        setModeloReceita(orcamentoImportado.modeloReceita || '')
+        setObservacoes(orcamentoImportado.observacoes)
+        setTermosCondicoes(orcamentoImportado.termosCondicoes)
+        setDesconto(orcamentoImportado.desconto)
+        
+        // Separa itens em backend e frontend
+        const categoriasBackend = [
+          'API REST', 'Banco de Dados', 'Integração de Pagamento',
+          'Autenticação/Autorização', 'Processamento de Dados',
+          'Infraestrutura/DevOps', 'Testes Backend', 'Documentação API', 'Outros Backend'
+        ]
+        
+        const backendItems = orcamentoImportado.itens.filter(item => categoriasBackend.includes(item.categoria))
+        const frontendItems = orcamentoImportado.itens.filter(item => !categoriasBackend.includes(item.categoria))
+        
+        setItensBackend(backendItems.length > 0 ? backendItems : [])
+        setItensFrontend(frontendItems.length > 0 ? frontendItems : [])
+        
+        alert('Orçamento importado com sucesso! Você pode editá-lo agora.')
+      } catch (error) {
+        console.error('Erro ao importar JSON:', error)
+        alert('Erro ao importar arquivo JSON. Certifique-se de que o arquivo está no formato correto.')
+      }
+    }
+    reader.readAsText(file)
+    
+    // Limpa o input para permitir importar o mesmo arquivo novamente
+    event.target.value = ''
+  }
+
+  const [mostrarRascunhos, setMostrarRascunhos] = useState(false)
+  const [rascunhosSalvos, setRascunhosSalvos] = useState<any[]>([])
+
+  useEffect(() => {
+    // Carrega rascunhos salvos do localStorage
+    const rascunhos = JSON.parse(localStorage.getItem('orcamentos-salvos') || '[]')
+    setRascunhosSalvos(rascunhos)
+  }, [])
+
+  const carregarRascunho = (numero: string) => {
+    const jsonData = localStorage.getItem(`orcamento-${numero}`)
+    if (!jsonData) {
+      alert('Rascunho não encontrado')
+      return
+    }
+
+    try {
+      const orcamentoImportado = JSON.parse(jsonData) as Orcamento
+      
+      setNumero(orcamentoImportado.numero)
+      setData(orcamentoImportado.data)
+      setValidade(orcamentoImportado.validade)
+      setTipoOrcamento(orcamentoImportado.tipo)
+      setPrazoEntrega(orcamentoImportado.prazoEntrega || '')
+      setCliente(orcamentoImportado.cliente)
+      setProjeto(orcamentoImportado.projeto)
+      setCustosOperacionais(orcamentoImportado.custosOperacionais.length > 0 ? orcamentoImportado.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
+      setModeloReceita(orcamentoImportado.modeloReceita || '')
+      setObservacoes(orcamentoImportado.observacoes)
+      setTermosCondicoes(orcamentoImportado.termosCondicoes)
+      setDesconto(orcamentoImportado.desconto)
+      
+      const categoriasBackend = [
+        'API REST', 'Banco de Dados', 'Integração de Pagamento',
+        'Autenticação/Autorização', 'Processamento de Dados',
+        'Infraestrutura/DevOps', 'Testes Backend', 'Documentação API', 'Outros Backend'
+      ]
+      
+      const backendItems = orcamentoImportado.itens.filter(item => categoriasBackend.includes(item.categoria))
+      const frontendItems = orcamentoImportado.itens.filter(item => !categoriasBackend.includes(item.categoria))
+      
+      setItensBackend(backendItems.length > 0 ? backendItems : [])
+      setItensFrontend(frontendItems.length > 0 ? frontendItems : [])
+      
+      setMostrarRascunhos(false)
+      alert('Rascunho carregado com sucesso!')
+    } catch (error) {
+      console.error('Erro ao carregar rascunho:', error)
+      alert('Erro ao carregar rascunho')
+    }
+  }
+
+  const removerRascunho = (numero: string) => {
+    if (confirm('Deseja realmente remover este rascunho?')) {
+      localStorage.removeItem(`orcamento-${numero}`)
+      const novosRascunhos = rascunhosSalvos.filter(r => r.numero !== numero)
+      localStorage.setItem('orcamentos-salvos', JSON.stringify(novosRascunhos))
+      setRascunhosSalvos(novosRascunhos)
+    }
+  }
+
   return (
     <div className="form-container">
-      <h2 className="form-title">Criar Orçamento Técnico Detalhado</h2>
+      <div className="form-header">
+        <h2 className="form-title">Criar Orçamento Técnico Detalhado</h2>
+        <div className="import-section">
+          <div className="import-wrapper">
+            <div className="import-buttons">
+              <button
+                type="button"
+                onClick={() => setMostrarRascunhos(!mostrarRascunhos)}
+                className="btn-rascunhos"
+              >
+                📋 Rascunhos Salvos {rascunhosSalvos.length > 0 && `(${rascunhosSalvos.length})`}
+              </button>
+              <label htmlFor="import-json" className="btn-import">
+                📥 Importar JSON
+              </label>
+              <input
+                id="import-json"
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportarJSON}
+                style={{ display: 'none' }}
+              />
+            </div>
+            <small className="import-hint">
+              {mostrarRascunhos 
+                ? 'Selecione um rascunho abaixo ou importe um arquivo JSON'
+                : 'Os orçamentos são salvos automaticamente. Clique em "Rascunhos Salvos" para ver.'}
+            </small>
+          </div>
+        </div>
+      </div>
+      
+      {mostrarRascunhos && rascunhosSalvos.length > 0 && (
+        <div className="rascunhos-container">
+          <h3>Rascunhos Salvos</h3>
+          <div className="rascunhos-list">
+            {rascunhosSalvos.map((rascunho) => (
+              <div key={rascunho.numero} className="rascunho-item">
+                <div className="rascunho-info">
+                  <strong>{rascunho.titulo}</strong>
+                  <span>Nº {rascunho.numero}</span>
+                  <span>{new Date(rascunho.data).toLocaleDateString('pt-BR')}</span>
+                  <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rascunho.total)}</span>
+                </div>
+                <div className="rascunho-actions">
+                  <button
+                    type="button"
+                    onClick={() => carregarRascunho(rascunho.numero)}
+                    className="btn-carregar"
+                  >
+                    Carregar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removerRascunho(rascunho.numero)}
+                    className="btn-remover-rascunho"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="orcamento-form">
         <div className="form-section">
           <h3>Informações do Orçamento</h3>

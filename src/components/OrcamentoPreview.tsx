@@ -10,7 +10,7 @@ interface OrcamentoPreviewProps {
   onVoltar: () => void
 }
 
-function OrcamentoPreview({ orcamento, onVoltar }: OrcamentoPreviewProps) {
+function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewProps) {
   const printRef = useRef<HTMLDivElement>(null)
 
   const formatarData = (data: string) => {
@@ -108,14 +108,56 @@ function OrcamentoPreview({ orcamento, onVoltar }: OrcamentoPreviewProps) {
       }
 
       pdf.save(gerarNomeArquivo())
+      
+      // Salva automaticamente em JSON também
+      exportarJSONAutomatico()
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
       alert('Erro ao gerar PDF. Tente novamente.')
     }
   }
 
+  const exportarJSONAutomatico = () => {
+    try {
+      const jsonData = JSON.stringify(orcamento, null, 2)
+      // Salva no localStorage para fácil acesso
+      localStorage.setItem(`orcamento-${orcamento.numero}`, jsonData)
+      // Também salva uma lista de orçamentos salvos
+      const orcamentosSalvos = JSON.parse(localStorage.getItem('orcamentos-salvos') || '[]')
+      if (!orcamentosSalvos.find((o: any) => o.numero === orcamento.numero)) {
+        orcamentosSalvos.push({
+          numero: orcamento.numero,
+          titulo: orcamento.projeto.titulo || 'Sem título',
+          data: orcamento.data,
+          total: orcamento.total
+        })
+        localStorage.setItem('orcamentos-salvos', JSON.stringify(orcamentosSalvos))
+      }
+    } catch (error) {
+      console.error('Erro ao salvar JSON automaticamente:', error)
+    }
+  }
+
   const imprimir = () => {
     window.print()
+  }
+
+  const exportarJSON = () => {
+    try {
+      const jsonData = JSON.stringify(orcamento, null, 2)
+      const blob = new Blob([jsonData], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = gerarNomeArquivo().replace('.pdf', '.json')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Erro ao exportar JSON:', error)
+      alert('Erro ao exportar JSON. Tente novamente.')
+    }
   }
 
   const { backend, frontend } = agruparItensPorBackendFrontend()
@@ -139,12 +181,15 @@ function OrcamentoPreview({ orcamento, onVoltar }: OrcamentoPreviewProps) {
   return (
     <div className="preview-container">
       <div className="preview-actions">
-        <button onClick={onVoltar} className="btn-voltar">
+        <button onClick={onEditar || onVoltar} className="btn-voltar">
           ← Voltar e Editar
         </button>
         <div className="action-buttons">
           <button onClick={imprimir} className="btn-action">
             🖨️ Imprimir
+          </button>
+          <button onClick={exportarJSON} className="btn-action">
+            💾 Exportar JSON
           </button>
           <button onClick={exportarPDF} className="btn-action btn-primary">
             📄 Exportar PDF
