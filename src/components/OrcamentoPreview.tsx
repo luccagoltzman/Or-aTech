@@ -140,7 +140,9 @@ function OrcamentoPreview({ orcamento, onVoltar }: OrcamentoPreviewProps) {
             <p className="empresa-tagline">Soluções em Software de Alto Padrão</p>
           </div>
           <div className="header-right">
-            <h2 className="documento-titulo">ORÇAMENTO TÉCNICO</h2>
+            <h2 className="documento-titulo">
+              ORÇAMENTO TÉCNICO {orcamento.tipo === 'preliminar' ? 'PRELIMINAR' : 'DEFINITIVO'}
+            </h2>
             <div className="documento-numero">Nº {orcamento.numero}</div>
             <div className="documento-data">Data: {formatarData(orcamento.data)}</div>
           </div>

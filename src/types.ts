@@ -14,6 +14,7 @@ export interface Orcamento {
   numero: string;
   data: string;
   validade: string;
+  tipo: 'preliminar' | 'definitivo';
   prazoEntrega?: string;
   cliente: {
     nome: string;

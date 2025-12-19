@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Orcamento, OrcamentoItem } from '../types'
 import './OrcamentoForm.css'
 
@@ -33,7 +33,9 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
   const [numero, setNumero] = useState('')
   const [data, setData] = useState(new Date().toISOString().split('T')[0])
   const [validade, setValidade] = useState('30')
+  const [tipoOrcamento, setTipoOrcamento] = useState<'preliminar' | 'definitivo'>('preliminar')
   const [prazoEntrega, setPrazoEntrega] = useState('')
+  const [horasPorSemana, setHorasPorSemana] = useState(40) // Padrão: 40 horas por semana
   const [cliente, setCliente] = useState({
     nome: '',
     email: '',
@@ -47,32 +49,8 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
     desenvolvimento: '',
     conclusao: ''
   })
-  const [itensBackend, setItensBackend] = useState<OrcamentoItem[]>([
-    { 
-      id: 'backend-1', 
-      categoria: 'API REST',
-      descricao: '', 
-      descricaoDetalhada: '',
-      quantidade: 1, 
-      horas: 0,
-      valorHora: 0,
-      valorUnitario: 0, 
-      valorTotal: 0 
-    }
-  ])
-  const [itensFrontend, setItensFrontend] = useState<OrcamentoItem[]>([
-    { 
-      id: 'frontend-1', 
-      categoria: 'Interface Web',
-      descricao: '', 
-      descricaoDetalhada: '',
-      quantidade: 1, 
-      horas: 0,
-      valorHora: 0,
-      valorUnitario: 0, 
-      valorTotal: 0 
-    }
-  ])
+  const [itensBackend, setItensBackend] = useState<OrcamentoItem[]>([])
+  const [itensFrontend, setItensFrontend] = useState<OrcamentoItem[]>([])
   const [custosOperacionais, setCustosOperacionais] = useState([
     { descricao: '', valor: 0, periodicidade: 'mensal' }
   ])
@@ -224,6 +202,32 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
     return horasBackend + horasFrontend
   }
 
+  const calcularPrazoEntrega = () => {
+    const totalHoras = calcularTotalHoras()
+    if (totalHoras === 0) return ''
+    
+    const semanas = Math.ceil(totalHoras / horasPorSemana)
+    return semanas === 1 ? '1 semana' : `${semanas} semanas`
+  }
+
+  // Atualiza o prazo automaticamente quando as horas mudam
+  useEffect(() => {
+    const totalHoras = calcularTotalHoras()
+    if (totalHoras > 0) {
+      const semanas = Math.ceil(totalHoras / horasPorSemana)
+      const novoPrazo = semanas === 1 ? '1 semana' : `${semanas} semanas`
+      // Atualiza se o campo estiver vazio ou se o valor atual corresponde ao calculado
+      const semanasAtual = prazoEntrega.match(/(\d+)\s*semana/i)
+      const semanasCalculadas = semanas.toString()
+      if (!prazoEntrega || (semanasAtual && semanasAtual[1] === semanasCalculadas)) {
+        setPrazoEntrega(novoPrazo)
+      }
+    } else if (!prazoEntrega) {
+      setPrazoEntrega('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itensBackend, itensFrontend, horasPorSemana])
+
   const calcularTotal = () => {
     const subtotal = calcularSubtotal()
     return subtotal - desconto
@@ -231,6 +235,15 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validação: pelo menos uma seção deve ter itens
+    const itensBackendValidos = itensBackend.filter(item => item.descricao.trim() !== '')
+    const itensFrontendValidos = itensFrontend.filter(item => item.descricao.trim() !== '')
+    
+    if (itensBackendValidos.length === 0 && itensFrontendValidos.length === 0) {
+      alert('Adicione pelo menos um item em Backend ou Frontend')
+      return
+    }
     
     const subtotal = calcularSubtotal()
     const total = calcularTotal()
@@ -240,6 +253,7 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
       numero: numero || `ORC-${Date.now()}`,
       data,
       validade,
+      tipo: tipoOrcamento,
       prazoEntrega,
       cliente,
       projeto,
@@ -302,13 +316,66 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
               />
             </div>
             <div className="form-group">
-              <label>Prazo de Entrega</label>
+              <label>Tipo de Orçamento</label>
+              <select
+                value={tipoOrcamento}
+                onChange={(e) => setTipoOrcamento(e.target.value as 'preliminar' | 'definitivo')}
+                required
+              >
+                <option value="preliminar">Preliminar</option>
+                <option value="definitivo">Definitivo</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Horas por Semana</label>
               <input
-                type="text"
-                value={prazoEntrega}
-                onChange={(e) => setPrazoEntrega(e.target.value)}
-                placeholder="Ex: 4 semanas, 60 dias"
+                type="number"
+                value={horasPorSemana}
+                onChange={(e) => {
+                  const valor = e.target.value
+                  if (valor === '') {
+                    setHorasPorSemana(40)
+                    return
+                  }
+                  const valorNumerico = parseInt(valor)
+                  if (!isNaN(valorNumerico)) {
+                    const valorLimitado = Math.max(1, Math.min(80, valorNumerico))
+                    setHorasPorSemana(valorLimitado)
+                  }
+                }}
+                onFocus={handleNumberInputFocus}
+                min="1"
+                max="80"
+                step="1"
+                title="Quantas horas de trabalho por semana para calcular o prazo"
               />
+            </div>
+            <div className="form-group">
+              <label>Prazo de Entrega</label>
+              <div className="prazo-container">
+                <input
+                  type="text"
+                  value={prazoEntrega}
+                  onChange={(e) => setPrazoEntrega(e.target.value)}
+                  placeholder="Calculado automaticamente"
+                  className="prazo-input"
+                />
+                {calcularTotalHoras() > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPrazoEntrega(calcularPrazoEntrega())}
+                    className="btn-recalcular"
+                    title="Recalcular prazo baseado nas horas"
+                  >
+                    ↻
+                  </button>
+                )}
+              </div>
+              {calcularTotalHoras() > 0 && (
+                <small className="prazo-hint">
+                  Calculado: {calcularTotalHoras()}h ÷ {horasPorSemana}h/semana = {calcularPrazoEntrega()}
+                </small>
+              )}
             </div>
           </div>
         </div>
@@ -400,12 +467,19 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
 
         <div className="form-section">
           <div className="section-header">
-            <h3>Backend</h3>
-            <button type="button" onClick={adicionarItemBackend} className="btn-add">
-              + Adicionar Item Backend
-            </button>
+            <h3>Backend {itensBackend.length === 0 && <span className="section-optional">(Opcional)</span>}</h3>
+            {itensBackend.length === 0 && (
+              <button type="button" onClick={adicionarItemBackend} className="btn-add">
+                + Adicionar Item Backend
+              </button>
+            )}
           </div>
-          <div className="itens-container">
+          {itensBackend.length === 0 ? (
+            <div className="empty-section">
+              <p>Nenhum item de Backend adicionado. Clique no botão acima para adicionar.</p>
+            </div>
+          ) : (
+            <div className="itens-container">
             {itensBackend.map((item) => (
               <div key={item.id} className="item-row-technical">
                 <div className="item-categoria">
@@ -477,29 +551,42 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
                     />
                   </div>
                 </div>
-                {itensBackend.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removerItemBackend(item.id)}
-                    className="btn-remove"
-                    title="Remover item"
-                  >
-                    ×
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removerItemBackend(item.id)}
+                  className="btn-remove"
+                  title="Remover item"
+                >
+                  ×
+                </button>
               </div>
             ))}
-          </div>
+            </div>
+          )}
+          {itensBackend.length > 0 && (
+            <div className="section-footer">
+              <button type="button" onClick={adicionarItemBackend} className="btn-add btn-add-footer">
+                + Adicionar Item Backend
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="form-section">
           <div className="section-header">
-            <h3>Frontend</h3>
-            <button type="button" onClick={adicionarItemFrontend} className="btn-add">
-              + Adicionar Item Frontend
-            </button>
+            <h3>Frontend {itensFrontend.length === 0 && <span className="section-optional">(Opcional)</span>}</h3>
+            {itensFrontend.length === 0 && (
+              <button type="button" onClick={adicionarItemFrontend} className="btn-add">
+                + Adicionar Item Frontend
+              </button>
+            )}
           </div>
-          <div className="itens-container">
+          {itensFrontend.length === 0 ? (
+            <div className="empty-section">
+              <p>Nenhum item de Frontend adicionado. Clique no botão acima para adicionar.</p>
+            </div>
+          ) : (
+            <div className="itens-container">
             {itensFrontend.map((item) => (
               <div key={item.id} className="item-row-technical">
                 <div className="item-categoria">
@@ -571,19 +658,25 @@ function OrcamentoForm({ onGerarOrcamento }: OrcamentoFormProps) {
                     />
                   </div>
                 </div>
-                {itensFrontend.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removerItemFrontend(item.id)}
-                    className="btn-remove"
-                    title="Remover item"
-                  >
-                    ×
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removerItemFrontend(item.id)}
+                  className="btn-remove"
+                  title="Remover item"
+                >
+                  ×
+                </button>
               </div>
             ))}
-          </div>
+            </div>
+          )}
+          {itensFrontend.length > 0 && (
+            <div className="section-footer">
+              <button type="button" onClick={adicionarItemFrontend} className="btn-add btn-add-footer">
+                + Adicionar Item Frontend
+              </button>
+            </div>
+          )}
           <div className="resumo-horas">
             <strong>Total de Horas: {calcularTotalHoras()}h</strong>
           </div>

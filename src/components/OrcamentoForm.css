@@ -55,13 +55,22 @@
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   padding: 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 1rem;
   transition: all 0.2s ease;
   background: var(--surface);
+}
+
+.form-group select {
+  cursor: pointer;
+}
+
+.form-group select:hover {
+  border-color: var(--primary-color);
 }
 
 .form-group input:hover,
@@ -100,6 +109,36 @@
   background: var(--primary-dark);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+.section-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+}
+
+.btn-add-footer {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.empty-section {
+  padding: 2rem;
+  text-align: center;
+  background: var(--surface);
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+}
+
+.section-optional {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 .itens-container {
@@ -273,6 +312,43 @@
   border-radius: 6px;
   font-size: 0.95rem;
   background: var(--surface);
+}
+
+.prazo-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.prazo-input {
+  flex: 1;
+}
+
+.btn-recalcular {
+  background: var(--secondary-color);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  min-width: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-recalcular:hover {
+  background: #475569;
+  transform: rotate(180deg);
+}
+
+.prazo-hint {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
 .item-descricao input {
