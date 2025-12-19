@@ -56,6 +56,28 @@ function OrcamentoPreview({ orcamento, onVoltar }: OrcamentoPreviewProps) {
     return { backend, frontend }
   }
 
+  const gerarNomeArquivo = () => {
+    // Usa o título do projeto se existir, senão usa o número do orçamento
+    let nomeBase = 'Orcamento-Tecnico'
+    
+    if (orcamento.projeto.titulo && orcamento.projeto.titulo.trim() !== '') {
+      // Remove caracteres especiais e espaços, mantém apenas letras, números e hífens
+      nomeBase = orcamento.projeto.titulo
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+        .replace(/[^a-z0-9\s-]/g, '') // Remove caracteres especiais
+        .replace(/\s+/g, '-') // Substitui espaços por hífens
+        .replace(/-+/g, '-') // Remove hífens duplicados
+        .substring(0, 50) // Limita o tamanho
+    } else {
+      nomeBase = `Orcamento-${orcamento.numero}`
+    }
+    
+    return `${nomeBase}.pdf`
+  }
+
   const exportarPDF = async () => {
     if (!printRef.current) return
 
@@ -85,7 +107,7 @@ function OrcamentoPreview({ orcamento, onVoltar }: OrcamentoPreviewProps) {
         heightLeft -= pageHeight
       }
 
-      pdf.save(`Orcamento-Tecnico-${orcamento.numero}.pdf`)
+      pdf.save(gerarNomeArquivo())
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
       alert('Erro ao gerar PDF. Tente novamente.')
