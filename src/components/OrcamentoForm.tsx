@@ -37,7 +37,13 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
   const [tipoOrcamento, setTipoOrcamento] = useState<'preliminar' | 'definitivo'>('preliminar')
   const [prazoEntrega, setPrazoEntrega] = useState('')
   const [horasPorSemana, setHorasPorSemana] = useState(40) // Padrão: 40 horas por semana
-  const [cliente, setCliente] = useState({
+  const [cliente, setCliente] = useState<{
+    nome: string
+    email: string
+    telefone: string
+    endereco: string
+    empresa?: string
+  }>({
     nome: '',
     email: '',
     telefone: '',
@@ -283,7 +289,10 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
       setValidade(orcamentoParaEditar.validade)
       setTipoOrcamento(orcamentoParaEditar.tipo)
       setPrazoEntrega(orcamentoParaEditar.prazoEntrega || '')
-      setCliente(orcamentoParaEditar.cliente)
+      setCliente({
+        ...orcamentoParaEditar.cliente,
+        empresa: orcamentoParaEditar.cliente.empresa || ''
+      })
       setProjeto(orcamentoParaEditar.projeto)
       setCustosOperacionais(orcamentoParaEditar.custosOperacionais.length > 0 ? orcamentoParaEditar.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
       setModeloReceita(orcamentoParaEditar.modeloReceita || '')
@@ -328,7 +337,10 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
         setValidade(orcamentoImportado.validade)
         setTipoOrcamento(orcamentoImportado.tipo)
         setPrazoEntrega(orcamentoImportado.prazoEntrega || '')
-        setCliente(orcamentoImportado.cliente)
+        setCliente({
+          ...orcamentoImportado.cliente,
+          empresa: orcamentoImportado.cliente.empresa || ''
+        })
         setProjeto(orcamentoImportado.projeto)
         setCustosOperacionais(orcamentoImportado.custosOperacionais.length > 0 ? orcamentoImportado.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
         setModeloReceita(orcamentoImportado.modeloReceita || '')
@@ -385,7 +397,10 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
       setValidade(orcamentoImportado.validade)
       setTipoOrcamento(orcamentoImportado.tipo)
       setPrazoEntrega(orcamentoImportado.prazoEntrega || '')
-      setCliente(orcamentoImportado.cliente)
+      setCliente({
+        ...orcamentoImportado.cliente,
+        empresa: orcamentoImportado.cliente.empresa || ''
+      })
       setProjeto(orcamentoImportado.projeto)
       setCustosOperacionais(orcamentoImportado.custosOperacionais.length > 0 ? orcamentoImportado.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
       setModeloReceita(orcamentoImportado.modeloReceita || '')

@@ -8,6 +8,7 @@ import './OrcamentoPreview.css'
 interface OrcamentoPreviewProps {
   orcamento: Orcamento
   onVoltar: () => void
+  onEditar?: () => void
 }
 
 function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewProps) {
