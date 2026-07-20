@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Orcamento, OrcamentoItem } from '../types'
+import { ModoOrcamento, Orcamento, OrcamentoItem, SecoesPdf } from '../types'
+import {
+  CATEGORIAS_BACKEND,
+  CATEGORIAS_FRONTEND,
+  CATEGORIAS_IMPLANTACOES,
+  SECOES_PDF_PADRAO,
+  mostrarBackend,
+  mostrarFrontend,
+  mostrarImplantacoes,
+  separarItensPorCategoria,
+  inferirModo
+} from '../constants/categorias'
 import './OrcamentoForm.css'
 
 interface OrcamentoFormProps {
@@ -7,36 +18,35 @@ interface OrcamentoFormProps {
   orcamentoParaEditar?: Orcamento | null
 }
 
-const CATEGORIAS_BACKEND = [
-  'API REST',
-  'Banco de Dados',
-  'Integração de Pagamento',
-  'Autenticação/Autorização',
-  'Processamento de Dados',
-  'Infraestrutura/DevOps',
-  'Testes Backend',
-  'Documentação API',
-  'Outros Backend'
-]
+type SecaoItens = 'backend' | 'frontend' | 'implantacoes'
 
-const CATEGORIAS_FRONTEND = [
-  'Interface Web',
-  'App Mobile (Android/iOS)',
-  'Design/UI/UX',
-  'Integração Frontend',
-  'Testes Frontend',
-  'Responsividade',
-  'Performance',
-  'Outros Frontend'
-]
+function criarItemVazio(secao: SecaoItens): OrcamentoItem {
+  const categorias = {
+    backend: CATEGORIAS_BACKEND[0],
+    frontend: CATEGORIAS_FRONTEND[0],
+    implantacoes: CATEGORIAS_IMPLANTACOES[0]
+  }
+  return {
+    id: `${secao}-${Date.now()}`,
+    categoria: categorias[secao],
+    descricao: '',
+    descricaoDetalhada: '',
+    quantidade: 1,
+    horas: 0,
+    valorHora: 0,
+    valorUnitario: 0,
+    valorTotal: 0
+  }
+}
 
 function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormProps) {
   const [numero, setNumero] = useState('')
   const [data, setData] = useState(new Date().toISOString().split('T')[0])
   const [validade, setValidade] = useState('30')
   const [tipoOrcamento, setTipoOrcamento] = useState<'preliminar' | 'definitivo'>('preliminar')
+  const [modo, setModo] = useState<ModoOrcamento>('desenvolvimento')
   const [prazoEntrega, setPrazoEntrega] = useState('')
-  const [horasPorSemana, setHorasPorSemana] = useState(40) // Padrão: 40 horas por semana
+  const [horasPorSemana, setHorasPorSemana] = useState(40)
   const [cliente, setCliente] = useState<{
     nome: string
     email: string
@@ -58,6 +68,7 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
   })
   const [itensBackend, setItensBackend] = useState<OrcamentoItem[]>([])
   const [itensFrontend, setItensFrontend] = useState<OrcamentoItem[]>([])
+  const [itensImplantacoes, setItensImplantacoes] = useState<OrcamentoItem[]>([])
   const [custosOperacionais, setCustosOperacionais] = useState([
     { descricao: '', valor: 0, periodicidade: 'mensal' }
   ])
@@ -65,119 +76,79 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
   const [observacoes, setObservacoes] = useState('')
   const [termosCondicoes, setTermosCondicoes] = useState('')
   const [desconto, setDesconto] = useState(0)
+  const [secoesPdf, setSecoesPdf] = useState<SecoesPdf>({ ...SECOES_PDF_PADRAO })
+  const [mostrarRascunhos, setMostrarRascunhos] = useState(false)
+  const [rascunhosSalvos, setRascunhosSalvos] = useState<any[]>([])
 
-  const adicionarItemBackend = () => {
-    setItensBackend([...itensBackend, {
-      id: `backend-${Date.now()}`,
-      categoria: 'API REST',
-      descricao: '',
-      descricaoDetalhada: '',
-      quantidade: 1,
-      horas: 0,
-      valorHora: 0,
-      valorUnitario: 0,
-      valorTotal: 0
-    }])
-  }
+  const exibirBackend = mostrarBackend(modo)
+  const exibirFrontend = mostrarFrontend(modo)
+  const exibirImplantacoes = mostrarImplantacoes(modo)
 
-  const adicionarItemFrontend = () => {
-    setItensFrontend([...itensFrontend, {
-      id: `frontend-${Date.now()}`,
-      categoria: 'Interface Web',
-      descricao: '',
-      descricaoDetalhada: '',
-      quantidade: 1,
-      horas: 0,
-      valorHora: 0,
-      valorUnitario: 0,
-      valorTotal: 0
-    }])
-  }
+  const adicionarItemBackend = () => setItensBackend([...itensBackend, criarItemVazio('backend')])
+  const adicionarItemFrontend = () => setItensFrontend([...itensFrontend, criarItemVazio('frontend')])
+  const adicionarItemImplantacao = () => setItensImplantacoes([...itensImplantacoes, criarItemVazio('implantacoes')])
 
   const removerItemBackend = (id: string) => {
-    if (itensBackend.length > 1) {
-      setItensBackend(itensBackend.filter(item => item.id !== id))
-    }
+    setItensBackend(itensBackend.filter(item => item.id !== id))
   }
-
   const removerItemFrontend = (id: string) => {
-    if (itensFrontend.length > 1) {
-      setItensFrontend(itensFrontend.filter(item => item.id !== id))
-    }
+    setItensFrontend(itensFrontend.filter(item => item.id !== id))
+  }
+  const removerItemImplantacao = (id: string) => {
+    setItensImplantacoes(itensImplantacoes.filter(item => item.id !== id))
   }
 
-  const atualizarItemBackend = (id: string, campo: keyof OrcamentoItem, valor: string | number) => {
-    setItensBackend(itensBackend.map(item => {
-      if (item.id === id) {
-        const atualizado = { ...item, [campo]: valor }
-        if (campo === 'horas' || campo === 'valorHora') {
-          atualizado.valorTotal = atualizado.horas * atualizado.valorHora
-          atualizado.valorUnitario = atualizado.valorHora
-        } else if (campo === 'quantidade' || campo === 'valorUnitario') {
-          atualizado.valorTotal = atualizado.quantidade * atualizado.valorUnitario
-        }
-        return atualizado
+  const atualizarItem = (
+    setter: React.Dispatch<React.SetStateAction<OrcamentoItem[]>>,
+    itens: OrcamentoItem[],
+    id: string,
+    campo: keyof OrcamentoItem,
+    valor: string | number
+  ) => {
+    setter(itens.map(item => {
+      if (item.id !== id) return item
+      const atualizado = { ...item, [campo]: valor }
+      if (campo === 'horas' || campo === 'valorHora') {
+        atualizado.valorTotal = atualizado.horas * atualizado.valorHora
+        atualizado.valorUnitario = atualizado.valorHora
+      } else if (campo === 'quantidade' || campo === 'valorUnitario') {
+        atualizado.valorTotal = atualizado.quantidade * atualizado.valorUnitario
       }
-      return item
+      return atualizado
     }))
   }
 
-  const atualizarItemFrontend = (id: string, campo: keyof OrcamentoItem, valor: string | number) => {
-    setItensFrontend(itensFrontend.map(item => {
-      if (item.id === id) {
-        const atualizado = { ...item, [campo]: valor }
-        if (campo === 'horas' || campo === 'valorHora') {
-          atualizado.valorTotal = atualizado.horas * atualizado.valorHora
-          atualizado.valorUnitario = atualizado.valorHora
-        } else if (campo === 'quantidade' || campo === 'valorUnitario') {
-          atualizado.valorTotal = atualizado.quantidade * atualizado.valorUnitario
-        }
-        return atualizado
-      }
-      return item
-    }))
-  }
+  const atualizarItemBackend = (id: string, campo: keyof OrcamentoItem, valor: string | number) =>
+    atualizarItem(setItensBackend, itensBackend, id, campo, valor)
+  const atualizarItemFrontend = (id: string, campo: keyof OrcamentoItem, valor: string | number) =>
+    atualizarItem(setItensFrontend, itensFrontend, id, campo, valor)
+  const atualizarItemImplantacao = (id: string, campo: keyof OrcamentoItem, valor: string | number) =>
+    atualizarItem(setItensImplantacoes, itensImplantacoes, id, campo, valor)
 
   const handleNumberInputChange = (
-    id: string, 
-    campo: 'horas' | 'valorHora', 
+    id: string,
+    campo: 'horas' | 'valorHora',
     e: React.ChangeEvent<HTMLInputElement>,
-    tipo: 'backend' | 'frontend'
+    secao: SecaoItens
   ) => {
     const valor = e.target.value
-    
-    // Se o campo está vazio, define como 0
+    const atualizar = {
+      backend: atualizarItemBackend,
+      frontend: atualizarItemFrontend,
+      implantacoes: atualizarItemImplantacao
+    }[secao]
+
     if (valor === '') {
-      if (tipo === 'backend') {
-        atualizarItemBackend(id, campo, 0)
-      } else {
-        atualizarItemFrontend(id, campo, 0)
-      }
+      atualizar(id, campo, 0)
       return
     }
-    
-    // Remove zeros à esquerda, mas mantém pelo menos um dígito
+
     const valorLimpo = valor.replace(/^0+(?=\d)/, '') || valor
     const valorNumerico = parseFloat(valorLimpo)
-    
-    // Se não for um número válido, mantém 0
-    if (isNaN(valorNumerico)) {
-      if (tipo === 'backend') {
-        atualizarItemBackend(id, campo, 0)
-      } else {
-        atualizarItemFrontend(id, campo, 0)
-      }
-    } else {
-      if (tipo === 'backend') {
-        atualizarItemBackend(id, campo, valorNumerico)
-      } else {
-        atualizarItemFrontend(id, campo, valorNumerico)
-      }
-    }
+    atualizar(id, campo, isNaN(valorNumerico) ? 0 : valorNumerico)
   }
 
   const handleNumberInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Seleciona todo o texto quando focar, facilitando substituição
     e.target.select()
   }
 
@@ -192,38 +163,34 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
   }
 
   const atualizarCustoOperacional = (index: number, campo: string, valor: string | number) => {
-    setCustosOperacionais(custosOperacionais.map((custo, i) => 
+    setCustosOperacionais(custosOperacionais.map((custo, i) =>
       i === index ? { ...custo, [campo]: valor } : custo
     ))
   }
 
-  const calcularSubtotal = () => {
-    const totalBackend = itensBackend.reduce((sum, item) => sum + item.valorTotal, 0)
-    const totalFrontend = itensFrontend.reduce((sum, item) => sum + item.valorTotal, 0)
-    return totalBackend + totalFrontend
+  const itensAtivos = () => {
+    const itens: OrcamentoItem[] = []
+    if (exibirBackend) itens.push(...itensBackend)
+    if (exibirFrontend) itens.push(...itensFrontend)
+    if (exibirImplantacoes) itens.push(...itensImplantacoes)
+    return itens
   }
 
-  const calcularTotalHoras = () => {
-    const horasBackend = itensBackend.reduce((sum, item) => sum + item.horas, 0)
-    const horasFrontend = itensFrontend.reduce((sum, item) => sum + item.horas, 0)
-    return horasBackend + horasFrontend
-  }
+  const calcularSubtotal = () => itensAtivos().reduce((sum, item) => sum + item.valorTotal, 0)
+  const calcularTotalHoras = () => itensAtivos().reduce((sum, item) => sum + item.horas, 0)
 
   const calcularPrazoEntrega = () => {
     const totalHoras = calcularTotalHoras()
     if (totalHoras === 0) return ''
-    
     const semanas = Math.ceil(totalHoras / horasPorSemana)
     return semanas === 1 ? '1 semana' : `${semanas} semanas`
   }
 
-  // Atualiza o prazo automaticamente quando as horas mudam
   useEffect(() => {
     const totalHoras = calcularTotalHoras()
     if (totalHoras > 0) {
       const semanas = Math.ceil(totalHoras / horasPorSemana)
       const novoPrazo = semanas === 1 ? '1 semana' : `${semanas} semanas`
-      // Atualiza se o campo estiver vazio ou se o valor atual corresponde ao calculado
       const semanasAtual = prazoEntrega.match(/(\d+)\s*semana/i)
       const semanasCalculadas = semanas.toString()
       if (!prazoEntrega || (semanasAtual && semanasAtual[1] === semanasCalculadas)) {
@@ -233,25 +200,56 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
       setPrazoEntrega('')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itensBackend, itensFrontend, horasPorSemana])
+  }, [itensBackend, itensFrontend, itensImplantacoes, horasPorSemana, modo])
 
-  const calcularTotal = () => {
-    const subtotal = calcularSubtotal()
-    return subtotal - desconto
+  const calcularTotal = () => calcularSubtotal() - desconto
+
+  const carregarOrcamentoNoFormulario = (orcamento: Orcamento) => {
+    setNumero(orcamento.numero)
+    setData(orcamento.data)
+    setValidade(orcamento.validade)
+    setTipoOrcamento(orcamento.tipo)
+    setPrazoEntrega(orcamento.prazoEntrega || '')
+    setCliente({
+      ...orcamento.cliente,
+      empresa: orcamento.cliente.empresa || ''
+    })
+    setProjeto(orcamento.projeto)
+    setCustosOperacionais(
+      orcamento.custosOperacionais.length > 0
+        ? orcamento.custosOperacionais
+        : [{ descricao: '', valor: 0, periodicidade: 'mensal' }]
+    )
+    setModeloReceita(orcamento.modeloReceita || '')
+    setObservacoes(orcamento.observacoes)
+    setTermosCondicoes(orcamento.termosCondicoes)
+    setDesconto(orcamento.desconto)
+    setSecoesPdf({ ...SECOES_PDF_PADRAO, ...orcamento.secoesPdf })
+
+    const { backend, frontend, implantacoes } = separarItensPorCategoria(orcamento.itens)
+    setItensBackend(backend)
+    setItensFrontend(frontend)
+    setItensImplantacoes(implantacoes)
+    setModo(inferirModo(orcamento.itens, orcamento.modo))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validação: pelo menos uma seção deve ter itens
-    const itensBackendValidos = itensBackend.filter(item => item.descricao.trim() !== '')
-    const itensFrontendValidos = itensFrontend.filter(item => item.descricao.trim() !== '')
-    
-    if (itensBackendValidos.length === 0 && itensFrontendValidos.length === 0) {
-      alert('Adicione pelo menos um item em Backend ou Frontend')
+
+    const backendValidos = exibirBackend ? itensBackend.filter(i => i.descricao.trim() !== '') : []
+    const frontendValidos = exibirFrontend ? itensFrontend.filter(i => i.descricao.trim() !== '') : []
+    const implantacoesValidos = exibirImplantacoes ? itensImplantacoes.filter(i => i.descricao.trim() !== '') : []
+
+    if (backendValidos.length === 0 && frontendValidos.length === 0 && implantacoesValidos.length === 0) {
+      alert(
+        modo === 'implantacoes'
+          ? 'Adicione pelo menos um item de Implantação'
+          : 'Adicione pelo menos um item nas seções ativas do orçamento'
+      )
       return
     }
-    
+
+    const itens = [...backendValidos, ...frontendValidos, ...implantacoesValidos]
     const subtotal = calcularSubtotal()
     const total = calcularTotal()
     const totalHoras = calcularTotalHoras()
@@ -261,57 +259,30 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
       data,
       validade,
       tipo: tipoOrcamento,
+      modo,
       prazoEntrega,
       cliente,
       projeto,
-      itens: [
-        ...itensBackend.filter(item => item.descricao.trim() !== ''),
-        ...itensFrontend.filter(item => item.descricao.trim() !== '')
-      ],
+      itens,
       custosOperacionais: custosOperacionais.filter(c => c.descricao.trim() !== ''),
       modeloReceita,
       observacoes,
-      termosCondicoes: termosCondicoes || 'Este orçamento é válido pelo prazo indicado e está sujeito à aprovação do cliente. O desenvolvimento seguirá as melhores práticas de mercado e será entregue conforme especificado.',
+      termosCondicoes:
+        termosCondicoes ||
+        'Este orçamento é válido pelo prazo indicado e está sujeito à aprovação do cliente. O desenvolvimento seguirá as melhores práticas de mercado e será entregue conforme especificado.',
       subtotal,
       desconto,
       total,
-      totalHoras
+      totalHoras,
+      secoesPdf
     }
 
     onGerarOrcamento(novoOrcamento)
   }
 
-  // Carrega dados do orçamento para edição
   useEffect(() => {
     if (orcamentoParaEditar) {
-      setNumero(orcamentoParaEditar.numero)
-      setData(orcamentoParaEditar.data)
-      setValidade(orcamentoParaEditar.validade)
-      setTipoOrcamento(orcamentoParaEditar.tipo)
-      setPrazoEntrega(orcamentoParaEditar.prazoEntrega || '')
-      setCliente({
-        ...orcamentoParaEditar.cliente,
-        empresa: orcamentoParaEditar.cliente.empresa || ''
-      })
-      setProjeto(orcamentoParaEditar.projeto)
-      setCustosOperacionais(orcamentoParaEditar.custosOperacionais.length > 0 ? orcamentoParaEditar.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
-      setModeloReceita(orcamentoParaEditar.modeloReceita || '')
-      setObservacoes(orcamentoParaEditar.observacoes)
-      setTermosCondicoes(orcamentoParaEditar.termosCondicoes)
-      setDesconto(orcamentoParaEditar.desconto)
-      
-      // Separa itens em backend e frontend
-      const categoriasBackend = [
-        'API REST', 'Banco de Dados', 'Integração de Pagamento',
-        'Autenticação/Autorização', 'Processamento de Dados',
-        'Infraestrutura/DevOps', 'Testes Backend', 'Documentação API', 'Outros Backend'
-      ]
-      
-      const backendItems = orcamentoParaEditar.itens.filter(item => categoriasBackend.includes(item.categoria))
-      const frontendItems = orcamentoParaEditar.itens.filter(item => !categoriasBackend.includes(item.categoria))
-      
-      setItensBackend(backendItems.length > 0 ? backendItems : [])
-      setItensFrontend(frontendItems.length > 0 ? frontendItems : [])
+      carregarOrcamentoNoFormulario(orcamentoParaEditar)
     }
   }, [orcamentoParaEditar])
 
@@ -324,43 +295,13 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
       try {
         const jsonContent = e.target?.result as string
         const orcamentoImportado = JSON.parse(jsonContent) as Orcamento
-        
-        // Valida se é um orçamento válido
+
         if (!orcamentoImportado.numero || !orcamentoImportado.data || !orcamentoImportado.itens) {
           alert('Arquivo JSON inválido. Certifique-se de que é um orçamento exportado desta plataforma.')
           return
         }
 
-        // Carrega os dados no formulário
-        setNumero(orcamentoImportado.numero)
-        setData(orcamentoImportado.data)
-        setValidade(orcamentoImportado.validade)
-        setTipoOrcamento(orcamentoImportado.tipo)
-        setPrazoEntrega(orcamentoImportado.prazoEntrega || '')
-        setCliente({
-          ...orcamentoImportado.cliente,
-          empresa: orcamentoImportado.cliente.empresa || ''
-        })
-        setProjeto(orcamentoImportado.projeto)
-        setCustosOperacionais(orcamentoImportado.custosOperacionais.length > 0 ? orcamentoImportado.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
-        setModeloReceita(orcamentoImportado.modeloReceita || '')
-        setObservacoes(orcamentoImportado.observacoes)
-        setTermosCondicoes(orcamentoImportado.termosCondicoes)
-        setDesconto(orcamentoImportado.desconto)
-        
-        // Separa itens em backend e frontend
-        const categoriasBackend = [
-          'API REST', 'Banco de Dados', 'Integração de Pagamento',
-          'Autenticação/Autorização', 'Processamento de Dados',
-          'Infraestrutura/DevOps', 'Testes Backend', 'Documentação API', 'Outros Backend'
-        ]
-        
-        const backendItems = orcamentoImportado.itens.filter(item => categoriasBackend.includes(item.categoria))
-        const frontendItems = orcamentoImportado.itens.filter(item => !categoriasBackend.includes(item.categoria))
-        
-        setItensBackend(backendItems.length > 0 ? backendItems : [])
-        setItensFrontend(frontendItems.length > 0 ? frontendItems : [])
-        
+        carregarOrcamentoNoFormulario(orcamentoImportado)
         alert('Orçamento importado com sucesso! Você pode editá-lo agora.')
       } catch (error) {
         console.error('Erro ao importar JSON:', error)
@@ -368,22 +309,16 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
       }
     }
     reader.readAsText(file)
-    
-    // Limpa o input para permitir importar o mesmo arquivo novamente
     event.target.value = ''
   }
 
-  const [mostrarRascunhos, setMostrarRascunhos] = useState(false)
-  const [rascunhosSalvos, setRascunhosSalvos] = useState<any[]>([])
-
   useEffect(() => {
-    // Carrega rascunhos salvos do localStorage
     const rascunhos = JSON.parse(localStorage.getItem('orcamentos-salvos') || '[]')
     setRascunhosSalvos(rascunhos)
   }, [])
 
-  const carregarRascunho = (numero: string) => {
-    const jsonData = localStorage.getItem(`orcamento-${numero}`)
+  const carregarRascunho = (numeroRascunho: string) => {
+    const jsonData = localStorage.getItem(`orcamento-${numeroRascunho}`)
     if (!jsonData) {
       alert('Rascunho não encontrado')
       return
@@ -391,35 +326,7 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
 
     try {
       const orcamentoImportado = JSON.parse(jsonData) as Orcamento
-      
-      setNumero(orcamentoImportado.numero)
-      setData(orcamentoImportado.data)
-      setValidade(orcamentoImportado.validade)
-      setTipoOrcamento(orcamentoImportado.tipo)
-      setPrazoEntrega(orcamentoImportado.prazoEntrega || '')
-      setCliente({
-        ...orcamentoImportado.cliente,
-        empresa: orcamentoImportado.cliente.empresa || ''
-      })
-      setProjeto(orcamentoImportado.projeto)
-      setCustosOperacionais(orcamentoImportado.custosOperacionais.length > 0 ? orcamentoImportado.custosOperacionais : [{ descricao: '', valor: 0, periodicidade: 'mensal' }])
-      setModeloReceita(orcamentoImportado.modeloReceita || '')
-      setObservacoes(orcamentoImportado.observacoes)
-      setTermosCondicoes(orcamentoImportado.termosCondicoes)
-      setDesconto(orcamentoImportado.desconto)
-      
-      const categoriasBackend = [
-        'API REST', 'Banco de Dados', 'Integração de Pagamento',
-        'Autenticação/Autorização', 'Processamento de Dados',
-        'Infraestrutura/DevOps', 'Testes Backend', 'Documentação API', 'Outros Backend'
-      ]
-      
-      const backendItems = orcamentoImportado.itens.filter(item => categoriasBackend.includes(item.categoria))
-      const frontendItems = orcamentoImportado.itens.filter(item => !categoriasBackend.includes(item.categoria))
-      
-      setItensBackend(backendItems.length > 0 ? backendItems : [])
-      setItensFrontend(frontendItems.length > 0 ? frontendItems : [])
-      
+      carregarOrcamentoNoFormulario(orcamentoImportado)
       setMostrarRascunhos(false)
       alert('Rascunho carregado com sucesso!')
     } catch (error) {
@@ -428,19 +335,119 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
     }
   }
 
-  const removerRascunho = (numero: string) => {
+  const removerRascunho = (numeroRascunho: string) => {
     if (confirm('Deseja realmente remover este rascunho?')) {
-      localStorage.removeItem(`orcamento-${numero}`)
-      const novosRascunhos = rascunhosSalvos.filter(r => r.numero !== numero)
+      localStorage.removeItem(`orcamento-${numeroRascunho}`)
+      const novosRascunhos = rascunhosSalvos.filter(r => r.numero !== numeroRascunho)
       localStorage.setItem('orcamentos-salvos', JSON.stringify(novosRascunhos))
       setRascunhosSalvos(novosRascunhos)
     }
   }
 
+  const toggleSecaoPdf = (chave: keyof SecoesPdf) => {
+    setSecoesPdf(prev => ({ ...prev, [chave]: !prev[chave] }))
+  }
+
+  const renderItemForm = (
+    item: OrcamentoItem,
+    secao: SecaoItens,
+    categorias: readonly string[],
+    onUpdate: (id: string, campo: keyof OrcamentoItem, valor: string | number) => void,
+    onRemove: (id: string) => void,
+    placeholderDesc: string
+  ) => (
+    <div key={item.id} className="item-row-technical">
+      <div className="item-categoria">
+        <label>Categoria</label>
+        <select
+          value={item.categoria}
+          onChange={(e) => onUpdate(item.id, 'categoria', e.target.value)}
+          required
+        >
+          {categorias.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+      <div className="item-descricao-full">
+        <label>Descrição do Item</label>
+        <input
+          type="text"
+          value={item.descricao}
+          onChange={(e) => onUpdate(item.id, 'descricao', e.target.value)}
+          placeholder={placeholderDesc}
+          required
+        />
+      </div>
+      <div className="item-detalhes-full">
+        <label>Descrição Detalhada</label>
+        <textarea
+          value={item.descricaoDetalhada}
+          onChange={(e) => onUpdate(item.id, 'descricaoDetalhada', e.target.value)}
+          placeholder="Descreva em detalhes o que será realizado..."
+          rows={3}
+        />
+      </div>
+      <div className="item-metrics">
+        <div className="item-horas">
+          <label>Horas</label>
+          <input
+            type="number"
+            value={item.horas === 0 ? '' : item.horas}
+            onChange={(e) => handleNumberInputChange(item.id, 'horas', e, secao)}
+            onFocus={handleNumberInputFocus}
+            min="0"
+            step="0.5"
+            required
+          />
+        </div>
+        <div className="item-valor-hora">
+          <label>Valor/Hora (R$)</label>
+          <input
+            type="number"
+            value={item.valorHora === 0 ? '' : item.valorHora}
+            onChange={(e) => handleNumberInputChange(item.id, 'valorHora', e, secao)}
+            onFocus={handleNumberInputFocus}
+            min="0"
+            step="0.01"
+            required
+          />
+        </div>
+        <div className="item-total">
+          <label>Total</label>
+          <input
+            type="text"
+            value={new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            }).format(item.valorTotal)}
+            readOnly
+            className="readonly"
+          />
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(item.id)}
+        className="btn-remove"
+        title="Remover item"
+      >
+        ×
+      </button>
+    </div>
+  )
+
+  const tituloFormulario =
+    modo === 'implantacoes'
+      ? 'Criar Orçamento de Implantação'
+      : modo === 'completo'
+        ? 'Criar Orçamento Completo'
+        : 'Criar Orçamento Técnico Detalhado'
+
   return (
     <div className="form-container">
       <div className="form-header">
-        <h2 className="form-title">Criar Orçamento Técnico Detalhado</h2>
+        <h2 className="form-title">{tituloFormulario}</h2>
         <div className="import-section">
           <div className="import-wrapper">
             <div className="import-buttons">
@@ -449,10 +456,10 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
                 onClick={() => setMostrarRascunhos(!mostrarRascunhos)}
                 className="btn-rascunhos"
               >
-                📋 Rascunhos Salvos {rascunhosSalvos.length > 0 && `(${rascunhosSalvos.length})`}
+                Rascunhos Salvos {rascunhosSalvos.length > 0 && `(${rascunhosSalvos.length})`}
               </button>
               <label htmlFor="import-json" className="btn-import">
-                📥 Importar JSON
+                Importar JSON
               </label>
               <input
                 id="import-json"
@@ -463,14 +470,14 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
               />
             </div>
             <small className="import-hint">
-              {mostrarRascunhos 
+              {mostrarRascunhos
                 ? 'Selecione um rascunho abaixo ou importe um arquivo JSON'
                 : 'Os orçamentos são salvos automaticamente. Clique em "Rascunhos Salvos" para ver.'}
             </small>
           </div>
         </div>
       </div>
-      
+
       {mostrarRascunhos && rascunhosSalvos.length > 0 && (
         <div className="rascunhos-container">
           <h3>Rascunhos Salvos</h3>
@@ -504,7 +511,38 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
           </div>
         </div>
       )}
+
       <form onSubmit={handleSubmit} className="orcamento-form">
+        <div className="form-section">
+          <h3>Modo do Orçamento</h3>
+          <div className="modo-selector">
+            <button
+              type="button"
+              className={`modo-option ${modo === 'desenvolvimento' ? 'active' : ''}`}
+              onClick={() => setModo('desenvolvimento')}
+            >
+              <strong>Desenvolvimento</strong>
+              <span>Backend e Frontend</span>
+            </button>
+            <button
+              type="button"
+              className={`modo-option ${modo === 'implantacoes' ? 'active' : ''}`}
+              onClick={() => setModo('implantacoes')}
+            >
+              <strong>Implantações</strong>
+              <span>Somente implantação</span>
+            </button>
+            <button
+              type="button"
+              className={`modo-option ${modo === 'completo' ? 'active' : ''}`}
+              onClick={() => setModo('completo')}
+            >
+              <strong>Completo</strong>
+              <span>Desenvolvimento + Implantação</span>
+            </button>
+          </div>
+        </div>
+
         <div className="form-section">
           <h3>Informações do Orçamento</h3>
           <div className="form-row">
@@ -566,8 +604,7 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
                   }
                   const valorNumerico = parseInt(valor)
                   if (!isNaN(valorNumerico)) {
-                    const valorLimitado = Math.max(1, Math.min(80, valorNumerico))
-                    setHorasPorSemana(valorLimitado)
+                    setHorasPorSemana(Math.max(1, Math.min(80, valorNumerico)))
                   }
                 }}
                 onFocus={handleNumberInputFocus}
@@ -667,17 +704,21 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
             <textarea
               value={projeto.introducao}
               onChange={(e) => setProjeto({ ...projeto, introducao: e.target.value })}
-              placeholder="Descreva o projeto de forma clara e objetiva, explicando o que será desenvolvido..."
+              placeholder="Descreva o projeto de forma clara e objetiva..."
               rows={4}
               required
             />
           </div>
           <div className="form-group">
-            <label>Desenvolvimento</label>
+            <label>{modo === 'implantacoes' ? 'Detalhamento da Implantação' : 'Desenvolvimento'}</label>
             <textarea
               value={projeto.desenvolvimento}
               onChange={(e) => setProjeto({ ...projeto, desenvolvimento: e.target.value })}
-              placeholder="Descreva detalhadamente como será o desenvolvimento, metodologia, tecnologias, processos, etc..."
+              placeholder={
+                modo === 'implantacoes'
+                  ? 'Descreva como será a implantação, etapas, responsáveis, etc...'
+                  : 'Descreva detalhadamente como será o desenvolvimento...'
+              }
               rows={5}
             />
           </div>
@@ -686,227 +727,131 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
             <textarea
               value={projeto.conclusao}
               onChange={(e) => setProjeto({ ...projeto, conclusao: e.target.value })}
-              placeholder="Conclusão do orçamento, benefícios esperados, próximos passos, etc..."
+              placeholder="Conclusão do orçamento, benefícios esperados, próximos passos..."
               rows={4}
             />
           </div>
         </div>
 
-        <div className="form-section">
-          <div className="section-header">
-            <h3>Backend {itensBackend.length === 0 && <span className="section-optional">(Opcional)</span>}</h3>
-            {itensBackend.length === 0 && (
-              <button type="button" onClick={adicionarItemBackend} className="btn-add">
-                + Adicionar Item Backend
-              </button>
-            )}
-          </div>
-          {itensBackend.length === 0 ? (
-            <div className="empty-section">
-              <p>Nenhum item de Backend adicionado. Clique no botão acima para adicionar.</p>
+        {exibirBackend && (
+          <div className="form-section">
+            <div className="section-header">
+              <h3>Backend {itensBackend.length === 0 && <span className="section-optional">(Opcional)</span>}</h3>
+              {itensBackend.length === 0 && (
+                <button type="button" onClick={adicionarItemBackend} className="btn-add">
+                  + Adicionar Item Backend
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="itens-container">
-            {itensBackend.map((item) => (
-              <div key={item.id} className="item-row-technical">
-                <div className="item-categoria">
-                  <label>Categoria</label>
-                  <select
-                    value={item.categoria}
-                    onChange={(e) => atualizarItemBackend(item.id, 'categoria', e.target.value)}
-                    required
-                  >
-                    {CATEGORIAS_BACKEND.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="item-descricao-full">
-                  <label>Descrição do Item</label>
-                  <input
-                    type="text"
-                    value={item.descricao}
-                    onChange={(e) => atualizarItemBackend(item.id, 'descricao', e.target.value)}
-                    placeholder="Ex: Desenvolvimento de API REST completa"
-                    required
-                  />
-                </div>
-                <div className="item-detalhes-full">
-                  <label>Descrição Detalhada</label>
-                  <textarea
-                    value={item.descricaoDetalhada}
-                    onChange={(e) => atualizarItemBackend(item.id, 'descricaoDetalhada', e.target.value)}
-                    placeholder="Descreva em detalhes o que será desenvolvido, funcionalidades, tecnologias utilizadas..."
-                    rows={3}
-                  />
-                </div>
-                <div className="item-metrics">
-                  <div className="item-horas">
-                    <label>Horas</label>
-                    <input
-                      type="number"
-                      value={item.horas === 0 ? '' : item.horas}
-                      onChange={(e) => handleNumberInputChange(item.id, 'horas', e, 'backend')}
-                      onFocus={handleNumberInputFocus}
-                      min="0"
-                      step="0.5"
-                      required
-                    />
-                  </div>
-                  <div className="item-valor-hora">
-                    <label>Valor/Hora (R$)</label>
-                    <input
-                      type="number"
-                      value={item.valorHora === 0 ? '' : item.valorHora}
-                      onChange={(e) => handleNumberInputChange(item.id, 'valorHora', e, 'backend')}
-                      onFocus={handleNumberInputFocus}
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="item-total">
-                    <label>Total</label>
-                    <input
-                      type="text"
-                      value={new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL'
-                      }).format(item.valorTotal)}
-                      readOnly
-                      className="readonly"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removerItemBackend(item.id)}
-                  className="btn-remove"
-                  title="Remover item"
-                >
-                  ×
+            {itensBackend.length === 0 ? (
+              <div className="empty-section">
+                <p>Nenhum item de Backend adicionado. Clique no botão acima para adicionar.</p>
+              </div>
+            ) : (
+              <div className="itens-container">
+                {itensBackend.map(item =>
+                  renderItemForm(
+                    item,
+                    'backend',
+                    CATEGORIAS_BACKEND,
+                    atualizarItemBackend,
+                    removerItemBackend,
+                    'Ex: Desenvolvimento de API REST completa'
+                  )
+                )}
+              </div>
+            )}
+            {itensBackend.length > 0 && (
+              <div className="section-footer">
+                <button type="button" onClick={adicionarItemBackend} className="btn-add btn-add-footer">
+                  + Adicionar Item Backend
                 </button>
               </div>
-            ))}
-            </div>
-          )}
-          {itensBackend.length > 0 && (
-            <div className="section-footer">
-              <button type="button" onClick={adicionarItemBackend} className="btn-add btn-add-footer">
-                + Adicionar Item Backend
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        <div className="form-section">
-          <div className="section-header">
-            <h3>Frontend {itensFrontend.length === 0 && <span className="section-optional">(Opcional)</span>}</h3>
-            {itensFrontend.length === 0 && (
-              <button type="button" onClick={adicionarItemFrontend} className="btn-add">
-                + Adicionar Item Frontend
-              </button>
-            )}
-          </div>
-          {itensFrontend.length === 0 ? (
-            <div className="empty-section">
-              <p>Nenhum item de Frontend adicionado. Clique no botão acima para adicionar.</p>
+        {exibirFrontend && (
+          <div className="form-section">
+            <div className="section-header">
+              <h3>Frontend {itensFrontend.length === 0 && <span className="section-optional">(Opcional)</span>}</h3>
+              {itensFrontend.length === 0 && (
+                <button type="button" onClick={adicionarItemFrontend} className="btn-add">
+                  + Adicionar Item Frontend
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="itens-container">
-            {itensFrontend.map((item) => (
-              <div key={item.id} className="item-row-technical">
-                <div className="item-categoria">
-                  <label>Categoria</label>
-                  <select
-                    value={item.categoria}
-                    onChange={(e) => atualizarItemFrontend(item.id, 'categoria', e.target.value)}
-                    required
-                  >
-                    {CATEGORIAS_FRONTEND.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="item-descricao-full">
-                  <label>Descrição do Item</label>
-                  <input
-                    type="text"
-                    value={item.descricao}
-                    onChange={(e) => atualizarItemFrontend(item.id, 'descricao', e.target.value)}
-                    placeholder="Ex: Interface web responsiva"
-                    required
-                  />
-                </div>
-                <div className="item-detalhes-full">
-                  <label>Descrição Detalhada</label>
-                  <textarea
-                    value={item.descricaoDetalhada}
-                    onChange={(e) => atualizarItemFrontend(item.id, 'descricaoDetalhada', e.target.value)}
-                    placeholder="Descreva em detalhes o que será desenvolvido, funcionalidades, tecnologias utilizadas..."
-                    rows={3}
-                  />
-                </div>
-                <div className="item-metrics">
-                  <div className="item-horas">
-                    <label>Horas</label>
-                    <input
-                      type="number"
-                      value={item.horas === 0 ? '' : item.horas}
-                      onChange={(e) => handleNumberInputChange(item.id, 'horas', e, 'frontend')}
-                      onFocus={handleNumberInputFocus}
-                      min="0"
-                      step="0.5"
-                      required
-                    />
-                  </div>
-                  <div className="item-valor-hora">
-                    <label>Valor/Hora (R$)</label>
-                    <input
-                      type="number"
-                      value={item.valorHora === 0 ? '' : item.valorHora}
-                      onChange={(e) => handleNumberInputChange(item.id, 'valorHora', e, 'frontend')}
-                      onFocus={handleNumberInputFocus}
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="item-total">
-                    <label>Total</label>
-                    <input
-                      type="text"
-                      value={new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL'
-                      }).format(item.valorTotal)}
-                      readOnly
-                      className="readonly"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removerItemFrontend(item.id)}
-                  className="btn-remove"
-                  title="Remover item"
-                >
-                  ×
+            {itensFrontend.length === 0 ? (
+              <div className="empty-section">
+                <p>Nenhum item de Frontend adicionado. Clique no botão acima para adicionar.</p>
+              </div>
+            ) : (
+              <div className="itens-container">
+                {itensFrontend.map(item =>
+                  renderItemForm(
+                    item,
+                    'frontend',
+                    CATEGORIAS_FRONTEND,
+                    atualizarItemFrontend,
+                    removerItemFrontend,
+                    'Ex: Interface web responsiva'
+                  )
+                )}
+              </div>
+            )}
+            {itensFrontend.length > 0 && (
+              <div className="section-footer">
+                <button type="button" onClick={adicionarItemFrontend} className="btn-add btn-add-footer">
+                  + Adicionar Item Frontend
                 </button>
               </div>
-            ))}
-            </div>
-          )}
-          {itensFrontend.length > 0 && (
-            <div className="section-footer">
-              <button type="button" onClick={adicionarItemFrontend} className="btn-add btn-add-footer">
-                + Adicionar Item Frontend
-              </button>
-            </div>
-          )}
-          <div className="resumo-horas">
-            <strong>Total de Horas: {calcularTotalHoras()}h</strong>
+            )}
           </div>
+        )}
+
+        {exibirImplantacoes && (
+          <div className="form-section">
+            <div className="section-header">
+              <h3>
+                Implantações{' '}
+                {itensImplantacoes.length === 0 && <span className="section-optional">(Opcional)</span>}
+              </h3>
+              {itensImplantacoes.length === 0 && (
+                <button type="button" onClick={adicionarItemImplantacao} className="btn-add">
+                  + Adicionar Item Implantação
+                </button>
+              )}
+            </div>
+            {itensImplantacoes.length === 0 ? (
+              <div className="empty-section">
+                <p>Nenhum item de Implantação adicionado. Clique no botão acima para adicionar.</p>
+              </div>
+            ) : (
+              <div className="itens-container">
+                {itensImplantacoes.map(item =>
+                  renderItemForm(
+                    item,
+                    'implantacoes',
+                    CATEGORIAS_IMPLANTACOES,
+                    atualizarItemImplantacao,
+                    removerItemImplantacao,
+                    'Ex: Configuração do ambiente de produção'
+                  )
+                )}
+              </div>
+            )}
+            {itensImplantacoes.length > 0 && (
+              <div className="section-footer">
+                <button type="button" onClick={adicionarItemImplantacao} className="btn-add btn-add-footer">
+                  + Adicionar Item Implantação
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="resumo-horas">
+          <strong>Total de Horas: {calcularTotalHoras()}h</strong>
         </div>
 
         <div className="form-section">
@@ -1045,8 +990,53 @@ function OrcamentoForm({ onGerarOrcamento, orcamentoParaEditar }: OrcamentoFormP
           />
         </div>
 
+        <div className="form-section">
+          <h3>Seções no PDF</h3>
+          <p className="secoes-pdf-hint">Escolha quais seções aparecerão no preview e no PDF exportado.</p>
+          <div className="secoes-pdf-grid">
+            <label className="secao-pdf-item">
+              <input type="checkbox" checked={secoesPdf.projeto} onChange={() => toggleSecaoPdf('projeto')} />
+              Projeto
+            </label>
+            {exibirBackend && (
+              <label className="secao-pdf-item">
+                <input type="checkbox" checked={secoesPdf.backend} onChange={() => toggleSecaoPdf('backend')} />
+                Backend
+              </label>
+            )}
+            {exibirFrontend && (
+              <label className="secao-pdf-item">
+                <input type="checkbox" checked={secoesPdf.frontend} onChange={() => toggleSecaoPdf('frontend')} />
+                Frontend
+              </label>
+            )}
+            {exibirImplantacoes && (
+              <label className="secao-pdf-item">
+                <input type="checkbox" checked={secoesPdf.implantacoes} onChange={() => toggleSecaoPdf('implantacoes')} />
+                Implantações
+              </label>
+            )}
+            <label className="secao-pdf-item">
+              <input type="checkbox" checked={secoesPdf.custos} onChange={() => toggleSecaoPdf('custos')} />
+              Custos Operacionais
+            </label>
+            <label className="secao-pdf-item">
+              <input type="checkbox" checked={secoesPdf.modeloReceita} onChange={() => toggleSecaoPdf('modeloReceita')} />
+              Modelo de Receita
+            </label>
+            <label className="secao-pdf-item">
+              <input type="checkbox" checked={secoesPdf.observacoes} onChange={() => toggleSecaoPdf('observacoes')} />
+              Observações
+            </label>
+            <label className="secao-pdf-item">
+              <input type="checkbox" checked={secoesPdf.termos} onChange={() => toggleSecaoPdf('termos')} />
+              Termos e Condições
+            </label>
+          </div>
+        </div>
+
         <button type="submit" className="btn-submit">
-          Gerar Orçamento Técnico
+          {modo === 'implantacoes' ? 'Gerar Orçamento de Implantação' : 'Gerar Orçamento Técnico'}
         </button>
       </form>
     </div>

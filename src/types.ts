@@ -10,11 +10,25 @@ export interface OrcamentoItem {
   valorTotal: number;
 }
 
+export type ModoOrcamento = 'desenvolvimento' | 'implantacoes' | 'completo';
+
+export interface SecoesPdf {
+  projeto: boolean;
+  backend: boolean;
+  frontend: boolean;
+  implantacoes: boolean;
+  custos: boolean;
+  modeloReceita: boolean;
+  observacoes: boolean;
+  termos: boolean;
+}
+
 export interface Orcamento {
   numero: string;
   data: string;
   validade: string;
   tipo: 'preliminar' | 'definitivo';
+  modo: ModoOrcamento;
   prazoEntrega?: string;
   cliente: {
     nome: string;
@@ -42,5 +56,5 @@ export interface Orcamento {
   desconto: number;
   total: number;
   totalHoras: number;
+  secoesPdf?: SecoesPdf;
 }
-

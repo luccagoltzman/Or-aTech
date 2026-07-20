@@ -1,8 +1,9 @@
 import { useRef } from 'react'
-import { Orcamento } from '../types'
+import { Orcamento, SecoesPdf } from '../types'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import logoPolaris from '../assets/P-Polaris.jpeg'
+import { SECOES_PDF_PADRAO, separarItensPorCategoria, inferirModo } from '../constants/categorias'
 import './OrcamentoPreview.css'
 
 interface OrcamentoPreviewProps {
@@ -13,6 +14,9 @@ interface OrcamentoPreviewProps {
 
 function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewProps) {
   const printRef = useRef<HTMLDivElement>(null)
+
+  const modo = inferirModo(orcamento.itens, orcamento.modo)
+  const secoes: SecoesPdf = { ...SECOES_PDF_PADRAO, ...orcamento.secoesPdf }
 
   const formatarData = (data: string) => {
     if (!data) return ''
@@ -29,53 +33,23 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
     return formatarData(data.toISOString())
   }
 
-  const agruparItensPorBackendFrontend = () => {
-    const backend: typeof orcamento.itens = []
-    const frontend: typeof orcamento.itens = []
-    
-    // Categorias que são consideradas Backend
-    const categoriasBackend = [
-      'API REST',
-      'Banco de Dados',
-      'Integração de Pagamento',
-      'Autenticação/Autorização',
-      'Processamento de Dados',
-      'Infraestrutura/DevOps',
-      'Testes Backend',
-      'Documentação API',
-      'Outros Backend'
-    ]
-    
-    orcamento.itens.forEach(item => {
-      if (categoriasBackend.includes(item.categoria)) {
-        backend.push(item)
-      } else {
-        frontend.push(item)
-      }
-    })
-    
-    return { backend, frontend }
-  }
-
   const gerarNomeArquivo = () => {
-    // Usa o título do projeto se existir, senão usa o número do orçamento
-    let nomeBase = 'Orcamento-Tecnico'
-    
+    let nomeBase = modo === 'implantacoes' ? 'Orcamento-Implantacao' : 'Orcamento-Tecnico'
+
     if (orcamento.projeto.titulo && orcamento.projeto.titulo.trim() !== '') {
-      // Remove caracteres especiais e espaços, mantém apenas letras, números e hífens
       nomeBase = orcamento.projeto.titulo
         .trim()
         .toLowerCase()
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-        .replace(/[^a-z0-9\s-]/g, '') // Remove caracteres especiais
-        .replace(/\s+/g, '-') // Substitui espaços por hífens
-        .replace(/-+/g, '-') // Remove hífens duplicados
-        .substring(0, 50) // Limita o tamanho
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 50)
     } else {
       nomeBase = `Orcamento-${orcamento.numero}`
     }
-    
+
     return `${nomeBase}.pdf`
   }
 
@@ -95,7 +69,6 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
       const pageHeight = 297
       const imgHeight = (canvas.height * imgWidth) / canvas.width
       let heightLeft = imgHeight
-
       let position = 0
 
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
@@ -109,8 +82,6 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
       }
 
       pdf.save(gerarNomeArquivo())
-      
-      // Salva automaticamente em JSON também
       exportarJSONAutomatico()
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
@@ -121,11 +92,9 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
   const exportarJSONAutomatico = () => {
     try {
       const jsonData = JSON.stringify(orcamento, null, 2)
-      // Salva no localStorage para fácil acesso
       localStorage.setItem(`orcamento-${orcamento.numero}`, jsonData)
-      // Também salva uma lista de orçamentos salvos
       const orcamentosSalvos = JSON.parse(localStorage.getItem('orcamentos-salvos') || '[]')
-      if (!orcamentosSalvos.find((o: any) => o.numero === orcamento.numero)) {
+      if (!orcamentosSalvos.find((o: { numero: string }) => o.numero === orcamento.numero)) {
         orcamentosSalvos.push({
           numero: orcamento.numero,
           titulo: orcamento.projeto.titulo || 'Sem título',
@@ -161,23 +130,96 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
     }
   }
 
-  const { backend, frontend } = agruparItensPorBackendFrontend()
-  const sectionNum = orcamento.projeto.titulo ? 2 : 1
+  const { backend, frontend, implantacoes } = separarItensPorCategoria(orcamento.itens)
+
+  const showProjeto = !!orcamento.projeto.titulo && secoes.projeto
+  const showBackend = backend.length > 0 && secoes.backend
+  const showFrontend = frontend.length > 0 && secoes.frontend
+  const showImplantacoes = implantacoes.length > 0 && secoes.implantacoes
+  const showCustos = orcamento.custosOperacionais.length > 0 && secoes.custos
+  const showModeloReceita = !!orcamento.modeloReceita && secoes.modeloReceita
+  const showObservacoes = !!orcamento.observacoes && secoes.observacoes
+  const showTermos = secoes.termos
+  const showDetalhamento = showBackend || showFrontend || showImplantacoes
+
+  const tituloDocumento =
+    modo === 'implantacoes'
+      ? `ORÇAMENTO DE IMPLANTAÇÃO ${orcamento.tipo === 'preliminar' ? 'PRELIMINAR' : 'DEFINITIVO'}`
+      : modo === 'completo'
+        ? `ORÇAMENTO COMPLETO ${orcamento.tipo === 'preliminar' ? 'PRELIMINAR' : 'DEFINITIVO'}`
+        : `ORÇAMENTO TÉCNICO ${orcamento.tipo === 'preliminar' ? 'PRELIMINAR' : 'DEFINITIVO'}`
+
+  const tituloDetalhamento =
+    modo === 'implantacoes'
+      ? 'Detalhamento da Implantação'
+      : modo === 'completo'
+        ? 'Detalhamento Técnico e de Implantação'
+        : 'Desenvolvimento Técnico – Detalhamento Completo'
+
+  let sectionCounter = 0
+  const nextSection = () => ++sectionCounter
 
   const gerarResumoEntregas = (itens: typeof orcamento.itens) => {
     const descricoes = itens
       .filter(item => item.descricao.trim() !== '')
       .map(item => item.descricao)
-    
+
     if (descricoes.length === 0) return '-'
-    
-    // Se houver muitas descrições, limita e adiciona "..."
     if (descricoes.length > 5) {
       return descricoes.slice(0, 5).join(', ') + '...'
     }
-    
     return descricoes.join(', ')
   }
+
+  const renderItensGrupo = (
+    itens: typeof orcamento.itens,
+    titulo: string,
+    prefixo: string
+  ) => (
+    <div className="categoria-group">
+      <h3 className="categoria-title">{prefixo} {titulo}</h3>
+      <div className="itens-categoria">
+        {itens.map((item, itemIndex) => (
+          <div key={item.id} className="item-technical">
+            <div className="item-header-technical">
+              <h4>{prefixo}.{itemIndex + 1} {item.descricao}</h4>
+              <div className="item-metrics-badge">
+                <span className="metric">{item.horas}h</span>
+                <span className="metric">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(item.valorHora)}/h
+                </span>
+                <span className="metric total">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(item.valorTotal)}
+                </span>
+              </div>
+            </div>
+            {item.descricaoDetalhada && (
+              <div className="item-detalhes">
+                <p>{item.descricaoDetalhada}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  const projetoNum = showProjeto ? nextSection() : 0
+  const detalhamentoNum = showDetalhamento ? nextSection() : 0
+  const custosNum = showCustos ? nextSection() : 0
+  const receitaNum = showModeloReceita ? nextSection() : 0
+  const resumoNum = showDetalhamento ? nextSection() : 0
+  const observacoesNum = showObservacoes ? nextSection() : 0
+  const termosNum = showTermos ? nextSection() : 0
+
+  let subIdx = 0
+  const nextSub = () => ++subIdx
 
   return (
     <div className="preview-container">
@@ -187,13 +229,13 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
         </button>
         <div className="action-buttons">
           <button onClick={imprimir} className="btn-action">
-            🖨️ Imprimir
+            Imprimir
           </button>
           <button onClick={exportarJSON} className="btn-action">
-            💾 Exportar JSON
+            Exportar JSON
           </button>
           <button onClick={exportarPDF} className="btn-action btn-primary">
-            📄 Exportar PDF
+            Exportar PDF
           </button>
         </div>
       </div>
@@ -208,9 +250,7 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
             <p className="empresa-tagline">Soluções em Software de Alto Padrão</p>
           </div>
           <div className="header-right">
-            <h2 className="documento-titulo">
-              ORÇAMENTO TÉCNICO {orcamento.tipo === 'preliminar' ? 'PRELIMINAR' : 'DEFINITIVO'}
-            </h2>
+            <h2 className="documento-titulo">{tituloDocumento}</h2>
             <div className="documento-numero">Nº {orcamento.numero}</div>
             <div className="documento-data">Data: {formatarData(orcamento.data)}</div>
           </div>
@@ -242,108 +282,44 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
           </div>
         </div>
 
-        {orcamento.projeto.titulo && (
+        {showProjeto && (
           <div className="projeto-section">
-            <h2 className="section-title">1. Projeto</h2>
+            <h2 className="section-title">{projetoNum}. Projeto</h2>
             <h3 className="projeto-titulo">{orcamento.projeto.titulo}</h3>
             {orcamento.projeto.introducao && (
               <div className="projeto-content">
-                <h4>1.1 Introdução</h4>
+                <h4>{projetoNum}.1 Introdução</h4>
                 <p className="text-content">{orcamento.projeto.introducao}</p>
               </div>
             )}
             {orcamento.projeto.desenvolvimento && (
               <div className="projeto-content">
-                <h4>1.2 Desenvolvimento</h4>
+                <h4>{projetoNum}.2 {modo === 'implantacoes' ? 'Detalhamento' : 'Desenvolvimento'}</h4>
                 <p className="text-content">{orcamento.projeto.desenvolvimento}</p>
               </div>
             )}
             {orcamento.projeto.conclusao && (
               <div className="projeto-content">
-                <h4>1.3 Conclusão</h4>
+                <h4>{projetoNum}.3 Conclusão</h4>
                 <p className="text-content">{orcamento.projeto.conclusao}</p>
               </div>
             )}
           </div>
         )}
 
-        <div className="desenvolvimento-section">
-          <h2 className="section-title">{sectionNum}. Desenvolvimento Técnico – Detalhamento Completo</h2>
-          
-          {backend.length > 0 && (
-            <div className="categoria-group">
-              <h3 className="categoria-title">{sectionNum}.1 Backend</h3>
-              <div className="itens-categoria">
-                {backend.map((item, itemIndex) => (
-                  <div key={item.id} className="item-technical">
-                    <div className="item-header-technical">
-                      <h4>{sectionNum}.1.{itemIndex + 1} {item.descricao}</h4>
-                      <div className="item-metrics-badge">
-                        <span className="metric">{item.horas}h</span>
-                        <span className="metric">
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL'
-                          }).format(item.valorHora)}/h
-                        </span>
-                        <span className="metric total">
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL'
-                          }).format(item.valorTotal)}
-                        </span>
-                      </div>
-                    </div>
-                    {item.descricaoDetalhada && (
-                      <div className="item-detalhes">
-                        <p>{item.descricaoDetalhada}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        {showDetalhamento && (
+          <div className="desenvolvimento-section">
+            <h2 className="section-title">{detalhamentoNum}. {tituloDetalhamento}</h2>
 
-          {frontend.length > 0 && (
-            <div className="categoria-group">
-              <h3 className="categoria-title">{sectionNum}.2 Frontend</h3>
-              <div className="itens-categoria">
-                {frontend.map((item, itemIndex) => (
-                  <div key={item.id} className="item-technical">
-                    <div className="item-header-technical">
-                      <h4>{sectionNum}.2.{itemIndex + 1} {item.descricao}</h4>
-                      <div className="item-metrics-badge">
-                        <span className="metric">{item.horas}h</span>
-                        <span className="metric">
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL'
-                          }).format(item.valorHora)}/h
-                        </span>
-                        <span className="metric total">
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL'
-                          }).format(item.valorTotal)}
-                        </span>
-                      </div>
-                    </div>
-                    {item.descricaoDetalhada && (
-                      <div className="item-detalhes">
-                        <p>{item.descricaoDetalhada}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+            {showBackend && renderItensGrupo(backend, 'Backend', `${detalhamentoNum}.${nextSub()}`)}
+            {showFrontend && renderItensGrupo(frontend, 'Frontend', `${detalhamentoNum}.${nextSub()}`)}
+            {showImplantacoes && renderItensGrupo(implantacoes, 'Implantações', `${detalhamentoNum}.${nextSub()}`)}
+          </div>
+        )}
 
-        {orcamento.custosOperacionais.length > 0 && (
+        {showCustos && (
           <div className="custos-section">
-            <h2 className="section-title">{orcamento.projeto.titulo ? '3' : '2'}. Custos Operacionais Mensais</h2>
+            <h2 className="section-title">{custosNum}. Custos Operacionais Mensais</h2>
             <div className="custos-list">
               {orcamento.custosOperacionais.map((custo, index) => (
                 <div key={index} className="custo-item">
@@ -363,68 +339,61 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
           </div>
         )}
 
-        {orcamento.modeloReceita && (
+        {showModeloReceita && (
           <div className="receita-section">
-            <h2 className="section-title">
-              {orcamento.projeto.titulo 
-                ? (orcamento.custosOperacionais.length > 0 ? '4' : '3')
-                : (orcamento.custosOperacionais.length > 0 ? '3' : '2')
-              }. Modelo de Receita
-            </h2>
+            <h2 className="section-title">{receitaNum}. Modelo de Receita</h2>
             <p className="text-content">{orcamento.modeloReceita}</p>
           </div>
         )}
 
-        <div className="resumo-section">
-          <h2 className="section-title">
-            {(() => {
-              let num = orcamento.projeto.titulo ? 3 : 2
-              if (orcamento.custosOperacionais.length > 0) num++
-              if (orcamento.modeloReceita) num++
-              return num
-            })()}. Tabela Resumo dos Esforços
-          </h2>
-          <div className="resumo-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Parte</th>
-                  <th className="text-center">Horas</th>
-                  <th>Entregas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {backend.length > 0 && (() => {
-                  const totalHoras = backend.reduce((sum, item) => sum + item.horas, 0)
-                  const entregas = gerarResumoEntregas(backend)
-                  return (
+        {showDetalhamento && (
+          <div className="resumo-section">
+            <h2 className="section-title">{resumoNum}. Tabela Resumo dos Esforços</h2>
+            <div className="resumo-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Parte</th>
+                    <th className="text-center">Horas</th>
+                    <th>Entregas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {showBackend && (
                     <tr key="backend">
                       <td><strong>Backend</strong></td>
-                      <td className="text-center">{totalHoras}h</td>
-                      <td>{entregas}</td>
+                      <td className="text-center">{backend.reduce((sum, item) => sum + item.horas, 0)}h</td>
+                      <td>{gerarResumoEntregas(backend)}</td>
                     </tr>
-                  )
-                })()}
-                {frontend.length > 0 && (() => {
-                  const totalHoras = frontend.reduce((sum, item) => sum + item.horas, 0)
-                  const entregas = gerarResumoEntregas(frontend)
-                  return (
+                  )}
+                  {showFrontend && (
                     <tr key="frontend">
                       <td><strong>Frontend</strong></td>
-                      <td className="text-center">{totalHoras}h</td>
-                      <td>{entregas}</td>
+                      <td className="text-center">{frontend.reduce((sum, item) => sum + item.horas, 0)}h</td>
+                      <td>{gerarResumoEntregas(frontend)}</td>
                     </tr>
-                  )
-                })()}
-                <tr className="resumo-total-row">
-                  <td><strong>Total</strong></td>
-                  <td className="text-center"><strong>{orcamento.totalHoras}h</strong></td>
-                  <td><strong>Sistema completo</strong></td>
-                </tr>
-              </tbody>
-            </table>
+                  )}
+                  {showImplantacoes && (
+                    <tr key="implantacoes">
+                      <td><strong>Implantações</strong></td>
+                      <td className="text-center">{implantacoes.reduce((sum, item) => sum + item.horas, 0)}h</td>
+                      <td>{gerarResumoEntregas(implantacoes)}</td>
+                    </tr>
+                  )}
+                  <tr className="resumo-total-row">
+                    <td><strong>Total</strong></td>
+                    <td className="text-center"><strong>{orcamento.totalHoras}h</strong></td>
+                    <td>
+                      <strong>
+                        {modo === 'implantacoes' ? 'Implantação completa' : 'Sistema completo'}
+                      </strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="orcamento-totais">
           <div className="total-row">
@@ -461,34 +430,19 @@ function OrcamentoPreview({ orcamento, onVoltar, onEditar }: OrcamentoPreviewPro
           </div>
         </div>
 
-        {orcamento.observacoes && (
+        {showObservacoes && (
           <div className="orcamento-observacoes">
-            <h3>
-              {(() => {
-                let num = orcamento.projeto.titulo ? 4 : 3
-                if (orcamento.custosOperacionais.length > 0) num++
-                if (orcamento.modeloReceita) num++
-                num++
-                return num
-              })()}. Observações Adicionais
-            </h3>
+            <h3>{observacoesNum}. Observações Adicionais</h3>
             <p className="text-content">{orcamento.observacoes}</p>
           </div>
         )}
 
-        <div className="orcamento-termos">
-          <h3>
-            {(() => {
-              let num = orcamento.projeto.titulo ? 4 : 3
-              if (orcamento.custosOperacionais.length > 0) num++
-              if (orcamento.modeloReceita) num++
-              if (orcamento.observacoes) num++
-              num++
-              return num
-            })()}. Termos e Condições
-          </h3>
-          <p className="text-content">{orcamento.termosCondicoes}</p>
-        </div>
+        {showTermos && (
+          <div className="orcamento-termos">
+            <h3>{termosNum}. Termos e Condições</h3>
+            <p className="text-content">{orcamento.termosCondicoes}</p>
+          </div>
+        )}
 
         <div className="orcamento-footer">
           <p>Obrigado pela confiança em nossos serviços!</p>
